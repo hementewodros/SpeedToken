@@ -42,25 +42,25 @@ function App() {
   };
 
   const sendTokens = async () => {
-    if (!token || !receiver || !amount) return;
+  if (!token || !receiver || !amount) return;
 
-    try {
-      setLoading(true); // Start loading
-      const decimals = await token.decimals();
-      const tx = await token.transfer(receiver, parseUnits(amount, decimals));
-      await tx.wait();
+  try {
+    setLoading(true); // Show loading immediately (before MetaMask popup)
+    const decimals = await token.decimals();
+    const tx = await token.transfer(receiver, parseUnits(amount, decimals));
+    await tx.wait();
 
-      alert("Transfer complete!");
-      getBalance();
-      setAmount("");
-      setReceiver("");
-    } catch (err) {
-      console.error(err);
-      alert("Transaction failed");
-    } finally {
-      setLoading(false); // Stop loading
-    }
-  };
+    alert("Transfer complete!");
+    getBalance();
+    setAmount("");
+    setReceiver("");
+  } catch (err) {
+    console.error(err);
+    alert("Transaction failed or rejected.");
+  } finally {
+    setLoading(false); // Always reset loading
+  }
+};
 
   useEffect(() => {
     if (account && token) {
