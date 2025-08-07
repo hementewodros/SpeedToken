@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
 import { BrowserProvider, Contract, formatUnits, parseUnits } from "ethers";
 
-
-
-
-// SPD Token on Sepolia
 const tokenAddress = "0x6e2b6b2636419cfadd5c098e3814c826c60d3506";
 const tokenABI = [
   "function name() view returns (string)",
@@ -20,46 +16,51 @@ function App() {
   const [receiver, setReceiver] = useState("");
   const [amount, setAmount] = useState("");
   const [token, setToken] = useState(null);
+  const [loading, setLoading] = useState(false); // <- Loading state
 
+  const connectWallet = async () => {
+    if (!window.ethereum) return alert("MetaMask not detected");
 
-const connectWallet = async () => {
-  if (!window.ethereum) return alert("MetaMask not detected");
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
 
-  const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    const provider = new BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
 
-  const provider = new BrowserProvider(window.ethereum);
-  const signer = await provider.getSigner(); // MUST be awaited in v6
+    const contract = new Contract(tokenAddress, tokenABI, signer);
 
-  const contract = new Contract(tokenAddress, tokenABI, signer);
+    setToken(contract);
+    setAccount(accounts[0]);
+  };
 
-  setToken(contract);
-  setAccount(accounts[0]);
-};
+  const getBalance = async () => {
+    if (!token || !account) return;
 
+    const bal = await token.balanceOf(account);
+    const decimals = await token.decimals();
 
+    setBalance(formatUnits(bal, decimals));
+  };
 
-const getBalance = async () => {
-  if (!token || !account) return;
+  const sendTokens = async () => {
+    if (!token || !receiver || !amount) return;
 
-  const bal = await token.balanceOf(account); // contract already has signer
-  const decimals = await token.decimals();
+    try {
+      setLoading(true); // Start loading
+      const decimals = await token.decimals();
+      const tx = await token.transfer(receiver, parseUnits(amount, decimals));
+      await tx.wait();
 
-  setBalance(formatUnits(bal, decimals));
-};
-
-
-
-const sendTokens = async () => {
-  if (!token || !receiver || !amount) return;
-
-  const decimals = await token.decimals();
-  const tx = await token.transfer(receiver, parseUnits(amount, decimals));
-  await tx.wait();
-
-  alert("Transfer complete!");
-  getBalance();
-};
-
+      alert("Transfer complete!");
+      getBalance();
+      setAmount("");
+      setReceiver("");
+    } catch (err) {
+      console.error(err);
+      alert("Transaction failed");
+    } finally {
+      setLoading(false); // Stop loading
+    }
+  };
 
   useEffect(() => {
     if (account && token) {
@@ -94,6 +95,7 @@ const sendTokens = async () => {
               placeholder="Recipient Address"
               value={receiver}
               onChange={(e) => setReceiver(e.target.value)}
+              disabled={loading}
             />
 
             <input
@@ -102,21 +104,25 @@ const sendTokens = async () => {
               placeholder="Amount to Send"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              disabled={loading}
             />
 
             <button
               onClick={sendTokens}
-              className="bg-green-600 text-white font-semibold px-4 py-3 rounded-2xl w-full transition hover:bg-green-700"
+              disabled={loading}
+              className={`${
+                loading ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+              } text-white font-semibold px-4 py-3 rounded-2xl w-full transition`}
             >
-              Send SPD
+              {loading ? "Sending..." : "Send SPD"}
             </button>
-            <button
-  onClick={getBalance}
-  className="bg-yellow-500 text-white font-semibold px-4 py-2 rounded-2xl w-full transition hover:bg-yellow-600"
->
-  Refresh Balance
-</button>
 
+            <button
+              onClick={getBalance}
+              className="bg-yellow-500 text-white font-semibold px-4 py-2 rounded-2xl w-full transition hover:bg-yellow-600"
+            >
+              Refresh Balance
+            </button>
           </div>
         )}
       </div>
